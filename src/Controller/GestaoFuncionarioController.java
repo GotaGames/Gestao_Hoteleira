@@ -1,0 +1,47 @@
+package Controller;
+
+import Model.Funcionario;
+import Service.FuncionarioService;
+
+import java.util.List;
+
+public class GestaoFuncionarioController {
+
+    private final FuncionarioService funcionarioService;
+
+    public GestaoFuncionarioController() {
+        this.funcionarioService = new FuncionarioService();
+    }
+
+    public Funcionario criar(String nome, String contacto, String endereco, String sexo,
+                             String documento, String cargo, int horarioTrabalho,
+                             String nivelPermissao, double salario) {
+        Funcionario f = new Funcionario();
+        f.setNome(nome);
+        f.setContacto(contacto);
+        f.setEndereco(endereco);
+        f.setSexo(sexo);
+        f.setDocumentoIdentificacao(documento);
+        f.setCargo(cargo);
+        f.setHorarioTrabalho(horarioTrabalho);
+        f.setNivelPermissao(nivelPermissao);
+        f.setSalario(salario);
+        return funcionarioService.criar(f);
+    }
+
+    public Funcionario atualizar(Funcionario f) {
+        return funcionarioService.atualizar(f);
+    }
+
+    public List<Funcionario> listarTodos() {
+        return funcionarioService.listarTodos();
+    }
+
+    public Funcionario buscarPorId(int idPessoa) {
+        return funcionarioService.buscarPorId(idPessoa);
+    }
+
+    public void remover(int idPessoa) {
+        funcionarioService.remover(idPessoa);
+    }
+}
