@@ -1,6 +1,7 @@
 package View;
 
 import Controller.LoginController;
+import Model.Funcionario;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -25,14 +26,14 @@ public class LoginFrame extends JFrame {
 
     private void configurarJanela() {
         setTitle("Sistema de Gestão Hoteleira - Login");
-        setSize(420, 280);
+        setSize(420, 240);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
     }
 
     private void construirComponentes() {
-        JPanel painel = new JPanel(new GridLayout(4, 2, 10, 10));
+        JPanel painel = new JPanel(new GridLayout(3, 2, 10, 10));
         painel.setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         painel.add(new JLabel("Documento do funcionário:"));
@@ -43,41 +44,29 @@ public class LoginFrame extends JFrame {
         campoPermissao = new JPasswordField();
         painel.add(campoPermissao);
 
-        JButton btnEntrar = new JButton("Entrar como Funcionário");
-        btnEntrar.addActionListener(e -> entrarComoFuncionario());
+        JButton btnEntrar = new JButton("Entrar");
+        btnEntrar.addActionListener(e -> entrar());
         painel.add(btnEntrar);
-
-        JButton btnCliente = new JButton("Entrar como Cliente");
-        btnCliente.addActionListener(e -> entrarComoCliente());
-        painel.add(btnCliente);
 
         JButton btnSair = new JButton("Sair");
         btnSair.addActionListener(e -> System.exit(0));
         painel.add(btnSair);
 
-        painel.add(new JLabel(""));
-
         add(painel);
+
+        getRootPane().setDefaultButton(btnEntrar);
     }
 
-    private void entrarComoFuncionario() {
+    private void entrar() {
         String documento = campoDocumento.getText().trim();
         String permissao = new String(campoPermissao.getPassword()).trim();
-        try {
-            boolean ok = loginController.autenticarFuncionario(documento, permissao);
-            if (ok) {
-                new MenuFuncionarioFrame().setVisible(true);
-                dispose();
-            } else {
-                JOptionPane.showMessageDialog(this, "Credenciais inválidas.", "Login", JOptionPane.WARNING_MESSAGE);
-            }
-        } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
 
-    private void entrarComoCliente() {
-        new MenuClienteFrame().setVisible(true);
-        dispose();
+        try {
+            Funcionario f = loginController.autenticarFuncionario(documento, permissao);
+            new MenuFuncionarioFrame(f).setVisible(true);
+            dispose();
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Login", JOptionPane.WARNING_MESSAGE);
+        }
     }
 }

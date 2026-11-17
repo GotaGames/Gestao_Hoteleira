@@ -1,45 +1,58 @@
-
 package View;
 
 import Controller.CheckOutController;
+import Controller.HospedagemController;
+import Model.Hospedagem;
 import Service.ResultadoCheckOut;
+import Util.DateUtil;
 import Util.FaturaWriter;
-
+import com.toedter.calendar.JDateChooser;
 
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
 import java.awt.GridLayout;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
+import java.util.List;
 
 public class CheckOutFrame extends JFrame {
 
     private final CheckOutController checkOutController;
-    private JTextField campoNumeroQuarto;
-    private JTextField campoDataCheckOut;
+    private final HospedagemController hospedagemController;
+
+    private JComboBox<String> comboQuarto;
+    private JDateChooser dataCheckOut;
 
     public CheckOutFrame() {
         this.checkOutController = new CheckOutController();
+        this.hospedagemController = new HospedagemController();
+
         setTitle("Check-out");
-        setSize(420, 240);
+        setSize(480, 260);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         setResizable(false);
 
+        construir();
+        carregarQuartosOcupados();
+    }
+
+    private void construir() {
         JPanel painel = new JPanel(new GridLayout(4, 2, 10, 10));
         painel.setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        painel.add(new JLabel("Número do quarto:"));
-        campoNumeroQuarto = new JTextField();
-        painel.add(campoNumeroQuarto);
+        painel.add(new JLabel("Quarto ocupado:"));
+        comboQuarto = new JComboBox<>();
+        painel.add(comboQuarto);
 
-        painel.add(new JLabel("Data check-out (AAAA-MM-DD):"));
-        campoDataCheckOut = new JTextField(LocalDate.now().toString());
-        painel.add(campoDataCheckOut);
+        painel.add(new JLabel("Data check-out:"));
+        dataCheckOut = new JDateChooser();
+        dataCheckOut.setDateFormatString("dd/MM/yyyy");
+        dataCheckOut.setDate(new java.util.Date());
+        painel.add(dataCheckOut);
 
         JButton btnConfirmar = new JButton("Confirmar Check-out");
         btnConfirmar.addActionListener(e -> realizar());
@@ -52,38 +65,53 @@ public class CheckOutFrame extends JFrame {
         add(painel);
     }
 
+    private void carregarQuartosOcupados() {
+        comboQuarto.removeAllItems();
+        try {
+            List<Hospedagem> ativas = hospedagemController.listarAtivas();
+            for (Hospedagem h : ativas) {
+                comboQuarto.addItem(
+                        h.getReserva().getQuarto().getNumeroQuarto() + " - " + h.getCliente().getNome()
+                );
+            }
+            if (comboQuarto.getItemCount() == 0) {
+                JOptionPane.showMessageDialog(this,
+                        "Não há quartos ocupados neste momento.",
+                        "Aviso", JOptionPane.WARNING_MESSAGE);
+            }
+        } catch (RuntimeException ex) {
+            JOptionPane.showMessageDialog(this, "Erro ao carregar quartos: " + ex.getMessage(),
+                    "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private int extrairNumeroQuarto() {
+        Object item = comboQuarto.getSelectedItem();
+        if (item == null) {
+            throw new IllegalStateException("Nenhum quarto ocupado disponível.");
+        }
+        String texto = item.toString();
+        int espaco = texto.indexOf(" - ");
+        if (espaco < 0) {
+            throw new IllegalStateException("Formato inválido do quarto.");
+        }
+        return Integer.parseInt(texto.substring(0, espaco).trim());
+    }
+
     private void realizar() {
         try {
-            int numeroQuarto = Integer.parseInt(campoNumeroQuarto.getText().trim());
-            LocalDate data;
-            try {
-                data = LocalDate.parse(campoDataCheckOut.getText().trim());
-            } catch (DateTimeParseException ex) {
-                throw new IllegalArgumentException("Data inválida. Use o formato AAAA-MM-DD.");
+            int numeroQuarto = extrairNumeroQuarto();
+            LocalDate data = DateUtil.toLocalDate(dataCheckOut.getDate());
+            if (data == null) {
+                throw new IllegalArgumentException("Selecione a data de check-out.");
             }
 
             ResultadoCheckOut resultado = checkOutController.realizar(numeroQuarto, data);
             String ficheiro = FaturaWriter.gravar(resultado);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("Check-out concluído.\n\n");
-            sb.append("Dias: ").append(resultado.getDias()).append("\n");
-            sb.append("Alojamento: ").append(resultado.getTotalAlojamento()).append("\n");
-            sb.append("Consumos: ").append(resultado.getTotalConsumos()).append("\n");
-            sb.append("Subtotal: ").append(resultado.getSubtotal()).append("\n");
-            sb.append("Desconto: ").append(resultado.getDesconto()).append("\n");
-            sb.append("Total a pagar: ").append(resultado.getTotalFinal()).append("\n");
+            new FaturaFrame(resultado, ficheiro).setVisible(true);
+            carregarQuartosOcupados();
 
-            if (ficheiro != null) {
-                sb.append("\nFatura gravada em: ").append(ficheiro);
-            }
-
-            JOptionPane.showMessageDialog(this, sb.toString(),
-                    "Fatura", JOptionPane.INFORMATION_MESSAGE);
-            dispose();
-
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Número de quarto inválido.", "Erro", JOptionPane.ERROR_MESSAGE);
         } catch (IllegalArgumentException | IllegalStateException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         } catch (RuntimeException ex) {
