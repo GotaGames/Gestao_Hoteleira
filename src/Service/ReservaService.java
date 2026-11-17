@@ -49,6 +49,8 @@ public class ReservaService {
         if (id <= 0) {
             throw new RuntimeException("Não foi possível criar a reserva.");
         }
+
+        quartoService.alterarEstado(quarto.getNumeroQuarto(), EstadoQuarto.RESERVADO);
         return reserva;
     }
 
@@ -74,6 +76,7 @@ public class ReservaService {
             throw new IllegalStateException("Só é possível cancelar reservas pendentes.");
         }
         reservaRepository.atualizarEstado(idReserva, EstadoReserva.CANCELADA);
+        quartoService.alterarEstado(r.getQuarto().getNumeroQuarto(), EstadoQuarto.DISPONIVEL);
     }
 
     public void atualizar(Reserva reserva) {
