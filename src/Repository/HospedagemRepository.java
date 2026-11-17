@@ -90,16 +90,16 @@ public class HospedagemRepository {
     }
 
     public Hospedagem findById(int idHospedagem) {
-        String sql = "SELECT h.*, " +
+        String sql = "SELECT h.idHospedagem, h.dataCheckIn, h.dataCheckOut, h.idReserva, h.idCliente, " +
                 "r.dataReserva, r.CheckIn, r.CheckOut, r.EstadoReserva, " +
-                "q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
+                "q.numeroQuarto, q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
                 "p.nome, p.contacto, p.endereco, p.Sexo, p.documentoIdentificacao, " +
                 "c.Nacionalidade " +
                 "FROM Hospedagem h " +
                 "INNER JOIN reserva r ON h.idReserva = r.idReserva " +
                 "INNER JOIN quarto q ON r.numeroQuarto = q.numeroQuarto " +
-                "INNER JOIN pessoa p ON h.idCliente = p.IdPessoa " +
-                "INNER JOIN Cliente c ON p.IdPessoa = c.IdPessoa " +
+                "LEFT JOIN pessoa p ON h.idCliente = p.IdPessoa " +
+                "LEFT JOIN Cliente c ON h.idCliente = c.IdPessoa " +
                 "WHERE h.idHospedagem = ?";
         Connection conn = null;
         try {
@@ -121,16 +121,16 @@ public class HospedagemRepository {
     }
 
     public Hospedagem findByQuartoAtivo(int numeroQuarto) {
-        String sql = "SELECT h.*, " +
+        String sql = "SELECT h.idHospedagem, h.dataCheckIn, h.dataCheckOut, h.idReserva, h.idCliente, " +
                 "r.dataReserva, r.CheckIn, r.CheckOut, r.EstadoReserva, " +
-                "q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
+                "q.numeroQuarto, q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
                 "p.nome, p.contacto, p.endereco, p.Sexo, p.documentoIdentificacao, " +
                 "c.Nacionalidade " +
                 "FROM Hospedagem h " +
                 "INNER JOIN reserva r ON h.idReserva = r.idReserva " +
                 "INNER JOIN quarto q ON r.numeroQuarto = q.numeroQuarto " +
-                "INNER JOIN pessoa p ON h.idCliente = p.IdPessoa " +
-                "INNER JOIN Cliente c ON p.IdPessoa = c.IdPessoa " +
+                "LEFT JOIN pessoa p ON h.idCliente = p.IdPessoa " +
+                "LEFT JOIN Cliente c ON h.idCliente = c.IdPessoa " +
                 "WHERE q.numeroQuarto = ? AND h.dataCheckOut IS NULL " +
                 "ORDER BY h.idHospedagem DESC LIMIT 1";
         Connection conn = null;
@@ -153,16 +153,16 @@ public class HospedagemRepository {
     }
 
     public List<Hospedagem> findAll() {
-        String sql = "SELECT h.*, " +
+        String sql = "SELECT h.idHospedagem, h.dataCheckIn, h.dataCheckOut, h.idReserva, h.idCliente, " +
                 "r.dataReserva, r.CheckIn, r.CheckOut, r.EstadoReserva, " +
-                "q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
+                "q.numeroQuarto, q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
                 "p.nome, p.contacto, p.endereco, p.Sexo, p.documentoIdentificacao, " +
                 "c.Nacionalidade " +
                 "FROM Hospedagem h " +
                 "INNER JOIN reserva r ON h.idReserva = r.idReserva " +
                 "INNER JOIN quarto q ON r.numeroQuarto = q.numeroQuarto " +
-                "INNER JOIN pessoa p ON h.idCliente = p.IdPessoa " +
-                "INNER JOIN Cliente c ON p.IdPessoa = c.IdPessoa " +
+                "LEFT JOIN pessoa p ON h.idCliente = p.IdPessoa " +
+                "LEFT JOIN Cliente c ON h.idCliente = c.IdPessoa " +
                 "ORDER BY h.idHospedagem";
         List<Hospedagem> lista = new ArrayList<>();
         Connection conn = null;
@@ -177,6 +177,38 @@ public class HospedagemRepository {
             }
         } catch (SQLException e) {
             System.err.println("HospedagemRepository.findAll: " + e.getMessage());
+        } finally {
+            DatabaseConnection.close(conn);
+        }
+        return lista;
+    }
+
+    public List<Hospedagem> findAtivas() {
+        String sql = "SELECT h.idHospedagem, h.dataCheckIn, h.dataCheckOut, h.idReserva, h.idCliente, " +
+                "r.dataReserva, r.CheckIn, r.CheckOut, r.EstadoReserva, " +
+                "q.numeroQuarto, q.tipoQuarto, q.precoDiario, q.EstadoQuarto, " +
+                "p.nome, p.contacto, p.endereco, p.Sexo, p.documentoIdentificacao, " +
+                "c.Nacionalidade " +
+                "FROM Hospedagem h " +
+                "INNER JOIN reserva r ON h.idReserva = r.idReserva " +
+                "INNER JOIN quarto q ON r.numeroQuarto = q.numeroQuarto " +
+                "LEFT JOIN pessoa p ON h.idCliente = p.IdPessoa " +
+                "LEFT JOIN Cliente c ON h.idCliente = c.IdPessoa " +
+                "WHERE h.dataCheckOut IS NULL " +
+                "ORDER BY h.idHospedagem";
+        List<Hospedagem> lista = new ArrayList<>();
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Hospedagem h = mapear(rs);
+                h.setServicos(carregarServicos(h.getIdHospedagem()));
+                lista.add(h);
+            }
+        } catch (SQLException e) {
+            System.err.println("HospedagemRepository.findAtivas: " + e.getMessage());
         } finally {
             DatabaseConnection.close(conn);
         }
@@ -243,14 +275,19 @@ public class HospedagemRepository {
 
         Cliente c = new Cliente();
         c.setIdPessoa(rs.getInt("idCliente"));
-        c.setNome(rs.getString("nome"));
-        c.setContacto(rs.getString("contacto"));
-        c.setEndereco(rs.getString("endereco"));
-        c.setSexo(rs.getString("Sexo"));
-        c.setDocumentoIdentificacao(rs.getString("documentoIdentificacao"));
-        c.setNacionalidade(rs.getString("Nacionalidade"));
-        r.setCliente(c);
+        String nome = rs.getString("nome");
+        if (nome != null) {
+            c.setNome(nome);
+            c.setContacto(rs.getString("contacto"));
+            c.setEndereco(rs.getString("endereco"));
+            c.setSexo(rs.getString("Sexo"));
+            c.setDocumentoIdentificacao(rs.getString("documentoIdentificacao"));
+            c.setNacionalidade(rs.getString("Nacionalidade"));
+        } else {
+            c.setNome("(cliente não encontrado)");
+        }
 
+        r.setCliente(c);
         h.setReserva(r);
         h.setCliente(c);
         return h;
